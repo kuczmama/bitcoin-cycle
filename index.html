@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bitcoin Cycle Distance Dashboard</title>
+<meta name="description" content="Monthly Bitcoin four-year-cycle scenario through 2035, with live price deviation tracking.">
+<style>
+:root {
+  --bg:#071018; --panel:#0d1822; --panel2:#111f2b; --line:#233444;
+  --text:#edf4f8; --muted:#94a9b8; --accent:#f2a900; --positive:#51d39a;
+  --negative:#ff7a7a; --neutral:#7eb8ff; --shadow:0 14px 40px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% -10%,#173047 0,transparent 32%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{color:inherit}
+.container{width:min(1180px,calc(100% - 32px));margin:0 auto}
+header{padding:32px 0 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.eyebrow{text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-size:12px;font-weight:750}
+h1{font-size:clamp(30px,5vw,54px);line-height:1.02;margin:8px 0 10px;max-width:780px}
+.subtitle{color:var(--muted);max-width:760px;margin:0;font-size:16px}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--positive);box-shadow:0 0 0 6px rgba(81,211,154,.1);margin-right:8px}
+.update-box{min-width:235px;background:rgba(13,24,34,.82);border:1px solid var(--line);padding:14px 16px;border-radius:14px;box-shadow:var(--shadow)}
+.update-box strong{display:block;font-size:13px}
+.update-box span{color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{background:linear-gradient(180deg,rgba(17,31,43,.98),rgba(13,24,34,.98));border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.metric{grid-column:span 3;padding:18px}
+.metric .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.09em}
+.metric .value{font-size:clamp(25px,3vw,38px);font-weight:780;margin:5px 0 1px;letter-spacing:-.03em}
+.metric .detail{color:var(--muted);font-size:12px}
+.status{margin:14px 0;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.status-copy strong{display:block;font-size:17px}
+.status-copy span{color:var(--muted)}
+.badge{white-space:nowrap;border-radius:999px;padding:7px 11px;background:#182838;border:1px solid #2d4255;font-weight:700;font-size:12px}
+.chart-card{grid-column:span 12;padding:18px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}
+.card-head h2{font-size:20px;margin:0}
+.card-head p{color:var(--muted);margin:3px 0 0;font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,.button,select,input{font:inherit}
+button,.button{border:1px solid #31475b;background:#162534;color:var(--text);padding:8px 11px;border-radius:10px;cursor:pointer;text-decoration:none}
+button:hover,.button:hover{border-color:#56718a}
+button.active{background:#273d50;border-color:#6c8da9}
+.canvas-wrap{height:430px;position:relative}
+canvas{width:100%;height:100%;display:block}
+.tooltip{position:absolute;display:none;pointer-events:none;background:#050a0f;border:1px solid #354b5e;border-radius:10px;padding:9px 11px;font-size:12px;box-shadow:var(--shadow);z-index:3}
+.split{grid-column:span 6;padding:18px}
+.input-row{display:flex;gap:9px;margin-top:12px}
+.input-row input{flex:1;min-width:0;background:#09131c;border:1px solid #2d4255;color:var(--text);border-radius:10px;padding:10px 12px}
+.small{font-size:12px;color:var(--muted)}
+.gauge{height:12px;border-radius:999px;background:linear-gradient(90deg,#ff7777 0 42%,#4b6378 42% 58%,#51d39a 58% 100%);margin:20px 0 8px;position:relative}
+.gauge-marker{position:absolute;top:-6px;width:3px;height:24px;background:#fff;border-radius:3px;transform:translateX(-50%);box-shadow:0 0 0 3px rgba(255,255,255,.12)}
+.gauge-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.table-card{grid-column:span 12;padding:18px;overflow:hidden}
+.table-tools{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+select{background:#09131c;border:1px solid #2d4255;color:var(--text);padding:8px 10px;border-radius:10px}
+.table-wrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;min-width:690px}
+th,td{text-align:right;padding:11px 13px;border-bottom:1px solid #1f303e;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:#12212d;color:#a9bac6;font-size:11px;text-transform:uppercase;letter-spacing:.08em;z-index:1}
+th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
+tr:hover td{background:rgba(255,255,255,.025)}
+.footer-card{margin:14px 0 32px;padding:20px}
+.footer-card h2{margin:0 0 8px;font-size:18px}
+.footer-card p,.footer-card li{color:var(--muted)}
+.footer-card ul{padding-left:18px}
+.positive{color:var(--positive)} .negative{color:var(--negative)} .neutral{color:var(--neutral)}
+@media(max-width:860px){header{display:block}.update-box{margin-top:18px}.metric{grid-column:span 6}.split{grid-column:span 12}.canvas-wrap{height:360px}}
+@media(max-width:520px){.container{width:min(100% - 20px,1180px)}.metric{grid-column:span 12}.status{display:block}.badge{display:inline-block;margin-top:12px}.canvas-wrap{height:320px}.card-head{display:block}.controls{margin-top:10px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div>
+    <div class="eyebrow">Four-year-cycle scenario</div>
+    <h1>How far is Bitcoin from the modeled cycle?</h1>
+    <p class="subtitle">A monthly scenario through 2035 based on diminishing cycle returns. Live data is compared with the target for today; this is a model tracker, not a trading signal.</p>
+  </div>
+  <div class="update-box"><strong><span class="live-dot"></span><span id="dataStatus">Loading live data…</span></strong><span id="lastUpdated">CoinGecko public API</span></div>
+</header>
+
+<section class="grid">
+  <article class="card metric"><div class="label">Current BTC</div><div class="value" id="livePrice">—</div><div class="detail" id="dayChange">Live USD price</div></article>
+  <article class="card metric"><div class="label">Model target today</div><div class="value" id="targetToday">—</div><div class="detail" id="targetMonth">Log-interpolated monthly path</div></article>
+  <article class="card metric"><div class="label">Distance from path</div><div class="value" id="priceDeviation">—</div><div class="detail" id="deviationDollars">Actual minus model target</div></article>
+  <article class="card metric"><div class="label">Next modeled ATH</div><div class="value">$166.5K</div><div class="detail" id="upsideToPeak">October 2029 base scenario</div></article>
+</section>
+
+<section class="card status">
+  <div class="status-copy"><strong id="statusTitle">Calculating cycle position…</strong><span id="statusText">The comparison will update when live data loads.</span></div>
+  <div class="badge" id="positionBadge">—</div>
+</section>
+
+<section class="grid">
+  <article class="card chart-card">
+    <div class="card-head">
+      <div><h2>Monthly cycle path</h2><p>Actual monthly observations are shown where the public API returns data.</p></div>
+      <div class="controls"><button id="fullBtn" class="active">2026–2035</button><button id="nearBtn">±18 months</button><button id="scaleBtn">Log scale</button></div>
+    </div>
+    <div class="canvas-wrap"><canvas id="cycleChart"></canvas><div class="tooltip" id="chartTooltip"></div></div>
+  </article>
+
+  <article class="card split">
+    <div class="card-head"><div><h2>Cycle distance</h2><p>Price deviation versus the target for today.</p></div></div>
+    <div class="gauge"><div class="gauge-marker" id="gaugeMarker" style="left:50%"></div></div>
+    <div class="gauge-labels"><span>Below path</span><span>Near path</span><span>Above path</span></div>
+    <p id="gaugeExplanation">Waiting for a live or manual price.</p>
+    <p class="small">Gauge range is capped at −50% to +50% for readability.</p>
+  </article>
+
+  <article class="card split">
+    <div class="card-head"><div><h2>Manual price override</h2><p>Use this if the API is rate-limited or unavailable.</p></div></div>
+    <div class="input-row"><input id="manualPrice" inputmode="decimal" placeholder="Enter BTC price in USD"><button id="applyManual">Apply</button></div>
+    <p class="small">Reload the page to return to live pricing. The model itself remains fixed.</p>
+  </article>
+
+  <article class="card table-card">
+    <div class="table-tools"><div><h2 style="margin:0;font-size:20px">Monthly projection table</h2><div class="small">Month-end scenario values</div></div><div class="controls"><select id="yearFilter"><option value="all">All years</option></select><a class="button" href="monthly_projection.csv" download>Download CSV</a></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Month</th><th>Target</th><th>Monthly change</th><th>Phase</th></tr></thead><tbody id="projectionBody"></tbody></table></div>
+  </article>
+</section>
+
+<section class="card footer-card">
+  <h2>Model assumptions</h2>
+  <ul>
+    <li>2025 cycle ATH: approximately $126,223; 2025 year-end anchor: $88,474.</li>
+    <li>Projected ATHs: $166,500 in October 2029 and $189,100 in October 2033.</li>
+    <li>Monthly values are logarithmically interpolated between explicit cycle landmarks, including bear-market lows, recoveries and peaks.</li>
+    <li>The model intentionally assumes diminishing returns and less severe drawdowns over time. It does not estimate probability or react to macroeconomic conditions.</li>
+  </ul>
+  <p><strong>Live data:</strong> CoinGecko keyless public API. <strong>Important:</strong> Bitcoin can materially diverge from historical cycle patterns; this dashboard is for scenario monitoring only.</p>
+</section>
+</div>
+
+<script>
+const MODEL=[{"date":"2026-01-31","year":2026,"month":1,"target":83733.17,"monthly_return":-5.358,"phase":"Post-peak decline / bottoming"},{"date":"2026-02-28","year":2026,"month":2,"target":79246.37,"monthly_return":-5.358,"phase":"Post-peak decline / bottoming"},{"date":"2026-03-31","year":2026,"month":3,"target":75000.0,"monthly_return":-5.358,"phase":"Post-peak decline / bottoming"},{"date":"2026-04-30","year":2026,"month":4,"target":69623.83,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-05-31","year":2026,"month":5,"target":64633.04,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-06-30","year":2026,"month":6,"target":60000.0,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-07-31","year":2026,"month":7,"target":55699.07,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-08-31","year":2026,"month":8,"target":51706.43,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-09-30","year":2026,"month":9,"target":48000.0,"monthly_return":-7.168,"phase":"Post-peak decline / bottoming"},{"date":"2026-10-31","year":2026,"month":10,"target":44899.89,"monthly_return":-6.459,"phase":"Post-peak decline / bottoming"},{"date":"2026-11-30","year":2026,"month":11,"target":42000.0,"monthly_return":-6.459,"phase":"Post-peak decline / bottoming"},{"date":"2026-12-31","year":2026,"month":12,"target":45000.0,"monthly_return":7.143,"phase":"Post-peak decline / bottoming"},{"date":"2027-01-31","year":2027,"month":1,"target":47819.64,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-02-28","year":2027,"month":2,"target":50815.95,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-03-31","year":2027,"month":3,"target":54000.0,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-04-30","year":2027,"month":4,"target":57442.54,"monthly_return":6.375,"phase":"Recovery"},{"date":"2027-05-31","year":2027,"month":5,"target":61104.54,"monthly_return":6.375,"phase":"Recovery"},{"date":"2027-06-30","year":2027,"month":6,"target":65000.0,"monthly_return":6.375,"phase":"Recovery"},{"date":"2027-07-31","year":2027,"month":7,"target":69072.81,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-08-31","year":2027,"month":8,"target":73400.81,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-09-30","year":2027,"month":9,"target":78000.0,"monthly_return":6.266,"phase":"Recovery"},{"date":"2027-10-31","year":2027,"month":10,"target":81810.79,"monthly_return":4.886,"phase":"Recovery"},{"date":"2027-11-30","year":2027,"month":11,"target":85807.76,"monthly_return":4.886,"phase":"Recovery"},{"date":"2027-12-31","year":2027,"month":12,"target":90000.0,"monthly_return":4.886,"phase":"Recovery"},{"date":"2028-01-31","year":2028,"month":1,"target":93834.32,"monthly_return":4.26,"phase":"Pre-peak expansion"},{"date":"2028-02-29","year":2028,"month":2,"target":97832.0,"monthly_return":4.26,"phase":"Pre-peak expansion"},{"date":"2028-03-31","year":2028,"month":3,"target":102000.0,"monthly_return":4.26,"phase":"Pre-peak expansion"},{"date":"2028-04-30","year":2028,"month":4,"target":106468.09,"monthly_return":4.38,"phase":"Pre-peak expansion"},{"date":"2028-05-31","year":2028,"month":5,"target":111131.89,"monthly_return":4.38,"phase":"Pre-peak expansion"},{"date":"2028-06-30","year":2028,"month":6,"target":116000.0,"monthly_return":4.38,"phase":"Pre-peak expansion"},{"date":"2028-07-31","year":2028,"month":7,"target":121105.34,"monthly_return":4.401,"phase":"Pre-peak expansion"},{"date":"2028-08-31","year":2028,"month":8,"target":126435.38,"monthly_return":4.401,"phase":"Pre-peak expansion"},{"date":"2028-09-30","year":2028,"month":9,"target":132000.0,"monthly_return":4.401,"phase":"Pre-peak expansion"},{"date":"2028-10-31","year":2028,"month":10,"target":136198.38,"monthly_return":3.181,"phase":"Pre-peak expansion"},{"date":"2028-11-30","year":2028,"month":11,"target":140530.3,"monthly_return":3.181,"phase":"Pre-peak expansion"},{"date":"2028-12-31","year":2028,"month":12,"target":145000.0,"monthly_return":3.181,"phase":"Pre-peak expansion"},{"date":"2029-01-31","year":2029,"month":1,"target":147619.07,"monthly_return":1.806,"phase":"Cycle peak / distribution"},{"date":"2029-02-28","year":2029,"month":2,"target":150285.46,"monthly_return":1.806,"phase":"Cycle peak / distribution"},{"date":"2029-03-31","year":2029,"month":3,"target":153000.0,"monthly_return":1.806,"phase":"Cycle peak / distribution"},{"date":"2029-04-30","year":2029,"month":4,"target":155298.63,"monthly_return":1.502,"phase":"Cycle peak / distribution"},{"date":"2029-05-31","year":2029,"month":5,"target":157631.79,"monthly_return":1.502,"phase":"Cycle peak / distribution"},{"date":"2029-06-30","year":2029,"month":6,"target":160000.0,"monthly_return":1.502,"phase":"Cycle peak / distribution"},{"date":"2029-07-31","year":2029,"month":7,"target":161649.6,"monthly_return":1.031,"phase":"Cycle peak / distribution"},{"date":"2029-08-31","year":2029,"month":8,"target":163316.21,"monthly_return":1.031,"phase":"Cycle peak / distribution"},{"date":"2029-09-30","year":2029,"month":9,"target":165000.0,"monthly_return":1.031,"phase":"Cycle peak / distribution"},{"date":"2029-10-31","year":2029,"month":10,"target":166500.0,"monthly_return":0.909,"phase":"Cycle peak / distribution"},{"date":"2029-11-30","year":2029,"month":11,"target":138374.49,"monthly_return":-16.892,"phase":"Cycle peak / distribution"},{"date":"2029-12-31","year":2029,"month":12,"target":115000.0,"monthly_return":-16.892,"phase":"Cycle peak / distribution"},{"date":"2030-01-31","year":2030,"month":1,"target":109028.64,"monthly_return":-5.192,"phase":"Post-peak decline / bottoming"},{"date":"2030-02-28","year":2030,"month":2,"target":103367.34,"monthly_return":-5.192,"phase":"Post-peak decline / bottoming"},{"date":"2030-03-31","year":2030,"month":3,"target":98000.0,"monthly_return":-5.192,"phase":"Post-peak decline / bottoming"},{"date":"2030-04-30","year":2030,"month":4,"target":94186.89,"monthly_return":-3.891,"phase":"Post-peak decline / bottoming"},{"date":"2030-05-31","year":2030,"month":5,"target":90522.15,"monthly_return":-3.891,"phase":"Post-peak decline / bottoming"},{"date":"2030-06-30","year":2030,"month":6,"target":87000.0,"monthly_return":-3.891,"phase":"Post-peak decline / bottoming"},{"date":"2030-07-31","year":2030,"month":7,"target":83890.16,"monthly_return":-3.575,"phase":"Post-peak decline / bottoming"},{"date":"2030-08-31","year":2030,"month":8,"target":80891.49,"monthly_return":-3.575,"phase":"Post-peak decline / bottoming"},{"date":"2030-09-30","year":2030,"month":9,"target":78000.0,"monthly_return":-3.575,"phase":"Post-peak decline / bottoming"},{"date":"2030-10-31","year":2030,"month":10,"target":76485.29,"monthly_return":-1.942,"phase":"Post-peak decline / bottoming"},{"date":"2030-11-30","year":2030,"month":11,"target":75000.0,"monthly_return":-1.942,"phase":"Post-peak decline / bottoming"},{"date":"2030-12-31","year":2030,"month":12,"target":76000.0,"monthly_return":1.333,"phase":"Post-peak decline / bottoming"},{"date":"2031-01-31","year":2031,"month":1,"target":78888.8,"monthly_return":3.801,"phase":"Recovery"},{"date":"2031-02-28","year":2031,"month":2,"target":81887.41,"monthly_return":3.801,"phase":"Recovery"},{"date":"2031-03-31","year":2031,"month":3,"target":85000.0,"monthly_return":3.801,"phase":"Recovery"},{"date":"2031-04-30","year":2031,"month":4,"target":88518.97,"monthly_return":4.14,"phase":"Recovery"},{"date":"2031-05-31","year":2031,"month":5,"target":92183.63,"monthly_return":4.14,"phase":"Recovery"},{"date":"2031-06-30","year":2031,"month":6,"target":96000.0,"monthly_return":4.14,"phase":"Recovery"},{"date":"2031-07-31","year":2031,"month":7,"target":100456.58,"monthly_return":4.642,"phase":"Recovery"},{"date":"2031-08-31","year":2031,"month":8,"target":105120.04,"monthly_return":4.642,"phase":"Recovery"},{"date":"2031-09-30","year":2031,"month":9,"target":110000.0,"monthly_return":4.642,"phase":"Recovery"},{"date":"2031-10-31","year":2031,"month":10,"target":114788.52,"monthly_return":4.353,"phase":"Recovery"},{"date":"2031-11-30","year":2031,"month":11,"target":119785.5,"monthly_return":4.353,"phase":"Recovery"},{"date":"2031-12-31","year":2031,"month":12,"target":125000.0,"monthly_return":4.353,"phase":"Recovery"},{"date":"2032-01-31","year":2032,"month":1,"target":129191.23,"monthly_return":3.353,"phase":"Pre-peak expansion"},{"date":"2032-02-29","year":2032,"month":2,"target":133522.99,"monthly_return":3.353,"phase":"Pre-peak expansion"},{"date":"2032-03-31","year":2032,"month":3,"target":138000.0,"monthly_return":3.353,"phase":"Pre-peak expansion"},{"date":"2032-04-30","year":2032,"month":4,"target":142203.97,"monthly_return":3.046,"phase":"Pre-peak expansion"},{"date":"2032-05-31","year":2032,"month":5,"target":146536.0,"monthly_return":3.046,"phase":"Pre-peak expansion"},{"date":"2032-06-30","year":2032,"month":6,"target":151000.0,"monthly_return":3.046,"phase":"Pre-peak expansion"},{"date":"2032-07-31","year":2032,"month":7,"target":155214.6,"monthly_return":2.791,"phase":"Pre-peak expansion"},{"date":"2032-08-31","year":2032,"month":8,"target":159546.84,"monthly_return":2.791,"phase":"Pre-peak expansion"},{"date":"2032-09-30","year":2032,"month":9,"target":164000.0,"monthly_return":2.791,"phase":"Pre-peak expansion"},{"date":"2032-10-31","year":2032,"month":10,"target":167587.61,"monthly_return":2.188,"phase":"Pre-peak expansion"},{"date":"2032-11-30","year":2032,"month":11,"target":171253.71,"monthly_return":2.188,"phase":"Pre-peak expansion"},{"date":"2032-12-31","year":2032,"month":12,"target":175000.0,"monthly_return":2.188,"phase":"Pre-peak expansion"},{"date":"2033-01-31","year":2033,"month":1,"target":176977.57,"monthly_return":1.13,"phase":"Cycle peak / distribution"},{"date":"2033-02-28","year":2033,"month":2,"target":178977.48,"monthly_return":1.13,"phase":"Cycle peak / distribution"},{"date":"2033-03-31","year":2033,"month":3,"target":181000.0,"monthly_return":1.13,"phase":"Cycle peak / distribution"},{"date":"2033-04-30","year":2033,"month":4,"target":182651.55,"monthly_return":0.912,"phase":"Cycle peak / distribution"},{"date":"2033-05-31","year":2033,"month":5,"target":184318.17,"monthly_return":0.912,"phase":"Cycle peak / distribution"},{"date":"2033-06-30","year":2033,"month":6,"target":186000.0,"monthly_return":0.912,"phase":"Cycle peak / distribution"},{"date":"2033-07-31","year":2033,"month":7,"target":186829.63,"monthly_return":0.446,"phase":"Cycle peak / distribution"},{"date":"2033-08-31","year":2033,"month":8,"target":187662.96,"monthly_return":0.446,"phase":"Cycle peak / distribution"},{"date":"2033-09-30","year":2033,"month":9,"target":188500.0,"monthly_return":0.446,"phase":"Cycle peak / distribution"},{"date":"2033-10-31","year":2033,"month":10,"target":189100.0,"monthly_return":0.318,"phase":"Cycle peak / distribution"},{"date":"2033-11-30","year":2033,"month":11,"target":156789.67,"monthly_return":-17.086,"phase":"Cycle peak / distribution"},{"date":"2033-12-31","year":2033,"month":12,"target":130000.0,"monthly_return":-17.086,"phase":"Cycle peak / distribution"},{"date":"2034-01-31","year":2034,"month":1,"target":125870.19,"monthly_return":-3.177,"phase":"Post-peak decline / bottoming"},{"date":"2034-02-28","year":2034,"month":2,"target":121871.58,"monthly_return":-3.177,"phase":"Post-peak decline / bottoming"},{"date":"2034-03-31","year":2034,"month":3,"target":118000.0,"monthly_return":-3.177,"phase":"Post-peak decline / bottoming"},{"date":"2034-04-30","year":2034,"month":4,"target":114920.32,"monthly_return":-2.61,"phase":"Post-peak decline / bottoming"},{"date":"2034-05-31","year":2034,"month":5,"target":111921.02,"monthly_return":-2.61,"phase":"Post-peak decline / bottoming"},{"date":"2034-06-30","year":2034,"month":6,"target":109000.0,"monthly_return":-2.61,"phase":"Post-peak decline / bottoming"},{"date":"2034-07-31","year":2034,"month":7,"target":106614.86,"monthly_return":-2.188,"phase":"Post-peak decline / bottoming"},{"date":"2034-08-31","year":2034,"month":8,"target":104281.9,"monthly_return":-2.188,"phase":"Post-peak decline / bottoming"},{"date":"2034-09-30","year":2034,"month":9,"target":102000.0,"monthly_return":-2.188,"phase":"Post-peak decline / bottoming"},{"date":"2034-10-31","year":2034,"month":10,"target":100995.05,"monthly_return":-0.985,"phase":"Post-peak decline / bottoming"},{"date":"2034-11-30","year":2034,"month":11,"target":100000.0,"monthly_return":-0.985,"phase":"Post-peak decline / bottoming"},{"date":"2034-12-31","year":2034,"month":12,"target":102000.0,"monthly_return":2.0,"phase":"Post-peak decline / bottoming"},{"date":"2035-01-31","year":2035,"month":1,"target":105229.97,"monthly_return":3.167,"phase":"Recovery"},{"date":"2035-02-28","year":2035,"month":2,"target":108562.23,"monthly_return":3.167,"phase":"Recovery"},{"date":"2035-03-31","year":2035,"month":3,"target":112000.0,"monthly_return":3.167,"phase":"Recovery"},{"date":"2035-04-30","year":2035,"month":4,"target":115238.77,"monthly_return":2.892,"phase":"Recovery"},{"date":"2035-05-31","year":2035,"month":5,"target":118571.2,"monthly_return":2.892,"phase":"Recovery"},{"date":"2035-06-30","year":2035,"month":6,"target":122000.0,"monthly_return":2.892,"phase":"Recovery"},{"date":"2035-07-31","year":2035,"month":7,"target":125875.58,"monthly_return":3.177,"phase":"Recovery"},{"date":"2035-08-31","year":2035,"month":8,"target":129874.28,"monthly_return":3.177,"phase":"Recovery"},{"date":"2035-09-30","year":2035,"month":9,"target":134000.0,"monthly_return":3.177,"phase":"Recovery"},{"date":"2035-10-31","year":2035,"month":10,"target":137570.67,"monthly_return":2.665,"phase":"Recovery"},{"date":"2035-11-30","year":2035,"month":11,"target":141236.5,"monthly_return":2.665,"phase":"Recovery"},{"date":"2035-12-31","year":2035,"month":12,"target":145000.0,"monthly_return":2.665,"phase":"Recovery"}];
+const FALLBACK_PRICE=63928;
+const fmtUSD=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:n>=1000?0:2}).format(n);
+const fmtPct=n=>`${n>=0?'+':''}${n.toFixed(1)}%`;
+const parseDate=s=>new Date(s+'T12:00:00Z');
+const modelDates=MODEL.map(d=>parseDate(d.date));
+let actualMonthly=[];
+let currentPrice=null;
+let viewMode='full';
+let logScale=false;
+
+function targetAt(date){
+  const t=date.getTime();
+  if(t<=modelDates[0]) return MODEL[0].target;
+  if(t>=modelDates.at(-1)) return MODEL.at(-1).target;
+  let hi=modelDates.findIndex(d=>d.getTime()>=t); let lo=hi-1;
+  const a=modelDates[lo].getTime(), b=modelDates[hi].getTime();
+  const p=(t-a)/(b-a);
+  return Math.exp(Math.log(MODEL[lo].target)+(Math.log(MODEL[hi].target)-Math.log(MODEL[lo].target))*p);
+}
+function monthsBetween(a,b){return (b.getUTCFullYear()-a.getUTCFullYear())*12+(b.getUTCMonth()-a.getUTCMonth());}
+function nearestModelDate(price, now){
+  let best=null;
+  MODEL.forEach(d=>{
+    const dt=parseDate(d.date); const monthGap=Math.abs(monthsBetween(now,dt));
+    if(monthGap>24) return;
+    const priceError=Math.abs(Math.log(price/d.target));
+    const score=priceError+monthGap*0.012;
+    if(!best||score<best.score) best={...d,dt,score,monthGap:monthsBetween(now,dt)};
+  });
+  return best;
+}
+function updateDashboard(price, change24=null, source='Live CoinGecko data'){
+  currentPrice=price;
+  const now=new Date(); const target=targetAt(now); const dev=(price/target-1)*100; const delta=price-target;
+  document.getElementById('livePrice').textContent=fmtUSD(price);
+  const changeEl=document.getElementById('dayChange');
+  changeEl.textContent=change24==null?source:`${fmtPct(change24)} over 24 hours`;
+  changeEl.className='detail '+(change24==null?'':change24>=0?'positive':'negative');
+  document.getElementById('targetToday').textContent=fmtUSD(target);
+  document.getElementById('targetMonth').textContent=`Target for ${now.toLocaleDateString('en-US',{month:'long',year:'numeric'})}`;
+  const devEl=document.getElementById('priceDeviation'); devEl.textContent=fmtPct(dev); devEl.className='value '+(dev>5?'positive':dev<-5?'negative':'neutral');
+  document.getElementById('deviationDollars').textContent=`${delta>=0?'+':''}${fmtUSD(delta)} versus path`;
+  const upside=(166500/price-1)*100;
+  document.getElementById('upsideToPeak').textContent=`${fmtPct(upside)} from current price`;
+  const nearest=nearestModelDate(price,now);
+  let title,text,badge;
+  if(dev>15){title='Bitcoin is materially above the modeled path.';text=`The live price is ${fmtPct(dev)} above today's target. The model would treat this as accelerated performance or an invalidating divergence.`;}
+  else if(dev<-15){title='Bitcoin is materially below the modeled path.';text=`The live price is ${Math.abs(dev).toFixed(1)}% below today's target. The model would treat this as a deeper or earlier drawdown than assumed.`;}
+  else{title='Bitcoin is relatively close to the modeled path.';text=`The live price is within 15% of today's target, a narrow band relative to Bitcoin's historical volatility.`;}
+  if(nearest){
+    const m=nearest.monthGap;
+    badge=m===0?'Near current model month':m>0?`Price resembles ${m} month${m===1?'':'s'} ahead`:`Price resembles ${Math.abs(m)} month${m===-1?'':'s'} behind`;
+    text+=` The nearest comparable modeled month within a two-year window is ${nearest.dt.toLocaleDateString('en-US',{month:'short',year:'numeric'})} at ${fmtUSD(nearest.target)}.`;
+  } else badge='No close model match';
+  document.getElementById('statusTitle').textContent=title;
+  document.getElementById('statusText').textContent=text;
+  document.getElementById('positionBadge').textContent=badge;
+  const capped=Math.max(-50,Math.min(50,dev));
+  document.getElementById('gaugeMarker').style.left=`${50+capped}%`;
+  document.getElementById('gaugeExplanation').textContent=`At ${fmtUSD(price)}, Bitcoin is ${fmtPct(dev)} relative to the ${fmtUSD(target)} target for today.`;
+  drawChart();
+}
+
+async function loadLiveData(){
+  try{
+    const priceRes=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true');
+    if(!priceRes.ok) throw new Error('price request failed');
+    const p=await priceRes.json(); const btc=p.bitcoin;
+    updateDashboard(btc.usd,btc.usd_24h_change,'Live CoinGecko data');
+    document.getElementById('dataStatus').textContent='Live data connected';
+    document.getElementById('lastUpdated').textContent=`Updated ${new Date((btc.last_updated_at||Date.now()/1000)*1000).toLocaleString()}`;
+    try{
+      const histRes=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily');
+      if(histRes.ok){
+        const hist=await histRes.json(); const byMonth={};
+        (hist.prices||[]).forEach(([ts,val])=>{const d=new Date(ts);const key=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;byMonth[key]={date:d,price:val};});
+        actualMonthly=Object.values(byMonth).filter(x=>x.date>=new Date('2025-12-01T00:00:00Z')).sort((a,b)=>a.date-b.date);
+        drawChart();
+      }
+    }catch(e){console.warn('Historical data unavailable',e)}
+  }catch(e){
+    document.getElementById('dataStatus').textContent='Using fallback price';
+    document.getElementById('lastUpdated').textContent='Enter a manual price for an exact comparison';
+    updateDashboard(FALLBACK_PRICE,null,'Fallback snapshot; use manual override');
+  }
+}
+
+function buildTable(){
+  const filter=document.getElementById('yearFilter');
+  [...new Set(MODEL.map(d=>d.year))].forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;filter.appendChild(o);});
+  function render(){
+    const y=filter.value; const body=document.getElementById('projectionBody'); body.innerHTML='';
+    MODEL.filter(d=>y==='all'||String(d.year)===y).forEach(d=>{
+      const tr=document.createElement('tr'); const dt=parseDate(d.date);
+      tr.innerHTML=`<td>${dt.toLocaleDateString('en-US',{month:'short',year:'numeric'})}</td><td>${fmtUSD(d.target)}</td><td class="${d.monthly_return>=0?'positive':'negative'}">${fmtPct(d.monthly_return)}</td><td>${d.phase}</td>`;body.appendChild(tr);
+    });
+  }
+  filter.addEventListener('change',render);render();
+}
+
+function drawChart(){
+  const canvas=document.getElementById('cycleChart'); const wrap=canvas.parentElement; const dpr=window.devicePixelRatio||1;
+  const W=wrap.clientWidth,H=wrap.clientHeight; canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const now=new Date(); let model=MODEL;
+  if(viewMode==='near'){const min=new Date(now);min.setMonth(min.getMonth()-18);const max=new Date(now);max.setMonth(max.getMonth()+18);model=MODEL.filter(d=>{const x=parseDate(d.date);return x>=min&&x<=max;});}
+  if(!model.length)return;
+  const pad={l:64,r:20,t:18,b:42}; const pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
+  const dates=model.map(d=>parseDate(d.date).getTime()); const actual=actualMonthly.filter(a=>a.date>=parseDate(model[0].date)&&a.date<=parseDate(model.at(-1).date));
+  const vals=[...model.map(d=>d.target),...actual.map(a=>a.price)];
+  let minV=Math.min(...vals),maxV=Math.max(...vals); if(!logScale){minV=Math.max(0,minV*.86);maxV*=1.10} else {minV*=.8;maxV*=1.2}
+  const x=t=>pad.l+(t-dates[0])/(dates.at(-1)-dates[0]||1)*pw;
+  const y=v=>{if(logScale){const a=Math.log(minV),b=Math.log(maxV);return pad.t+(1-(Math.log(v)-a)/(b-a))*ph}return pad.t+(1-(v-minV)/(maxV-minV))*ph};
+  ctx.strokeStyle='#213544';ctx.lineWidth=1;ctx.fillStyle='#8fa5b5';ctx.font='11px system-ui';ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=5;i++){const v=logScale?Math.exp(Math.log(minV)+(Math.log(maxV)-Math.log(minV))*i/5):minV+(maxV-minV)*i/5;const yy=y(v);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.fillText('$'+Math.round(v/1000)+'K',pad.l-9,yy)}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  const ticks=viewMode==='full'?10:6;
+  for(let i=0;i<=ticks;i++){const t=dates[0]+(dates.at(-1)-dates[0])*i/ticks;const xx=x(t);const dt=new Date(t);ctx.fillText(viewMode==='full'?String(dt.getUTCFullYear()):dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'}),xx,H-pad.b+12)}
+  // model area
+  ctx.beginPath();model.forEach((d,i)=>{const xx=x(parseDate(d.date).getTime()),yy=y(d.target);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.lineTo(x(parseDate(model.at(-1).date).getTime()),y(minV));ctx.lineTo(x(parseDate(model[0].date).getTime()),y(minV));ctx.closePath();const g=ctx.createLinearGradient(0,pad.t,0,H-pad.b);g.addColorStop(0,'rgba(242,169,0,.18)');g.addColorStop(1,'rgba(242,169,0,0)');ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();model.forEach((d,i)=>{const xx=x(parseDate(d.date).getTime()),yy=y(d.target);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle='#f2a900';ctx.lineWidth=2.5;ctx.stroke();
+  if(actual.length){ctx.beginPath();actual.forEach((d,i)=>{const xx=x(d.date.getTime()),yy=y(d.price);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle='#7eb8ff';ctx.lineWidth=2.5;ctx.stroke();actual.forEach(d=>{ctx.beginPath();ctx.arc(x(d.date.getTime()),y(d.price),3.2,0,Math.PI*2);ctx.fillStyle='#7eb8ff';ctx.fill()})}
+  if(now>=parseDate(model[0].date)&&now<=parseDate(model.at(-1).date)){const xx=x(now.getTime());ctx.setLineDash([5,5]);ctx.strokeStyle='#c7d2da';ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,H-pad.b);ctx.stroke();ctx.setLineDash([])}
+  // legend
+  ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='#f2a900';ctx.fillRect(pad.l+4,pad.t+4,18,3);ctx.fillStyle='#c2ced6';ctx.fillText('Model',pad.l+28,pad.t+6);
+  ctx.fillStyle='#7eb8ff';ctx.fillRect(pad.l+86,pad.t+4,18,3);ctx.fillStyle='#c2ced6';ctx.fillText('Actual',pad.l+110,pad.t+6);
+  canvas._chart={model,actual,x,y,pad,W,H};
+}
+
+function bindChartTooltip(){
+ const canvas=document.getElementById('cycleChart'),tip=document.getElementById('chartTooltip');
+ canvas.addEventListener('mousemove',e=>{const c=canvas._chart;if(!c)return;const r=canvas.getBoundingClientRect();const mx=e.clientX-r.left;let best=null;c.model.forEach(d=>{const px=c.x(parseDate(d.date).getTime());const dist=Math.abs(px-mx);if(!best||dist<best.dist)best={d,dist,px}});if(!best||best.dist>24){tip.style.display='none';return}const dt=parseDate(best.d.date);const act=c.actual.reduce((b,a)=>Math.abs(a.date-dt)<Math.abs((b?.date||new Date(0))-dt)?a:b,null);tip.innerHTML=`<strong>${dt.toLocaleDateString('en-US',{month:'long',year:'numeric'})}</strong><br>Model: ${fmtUSD(best.d.target)}${act&&Math.abs(monthsBetween(dt,act.date))<=1?`<br>Actual: ${fmtUSD(act.price)}`:''}`;tip.style.display='block';tip.style.left=Math.min(c.W-165,Math.max(8,best.px+10))+'px';tip.style.top='44px'});
+ canvas.addEventListener('mouseleave',()=>tip.style.display='none');
+}
+
+document.getElementById('applyManual').addEventListener('click',()=>{const v=Number(document.getElementById('manualPrice').value.replace(/[$,]/g,''));if(Number.isFinite(v)&&v>0){document.getElementById('dataStatus').textContent='Manual price active';document.getElementById('lastUpdated').textContent='Live API comparison overridden';updateDashboard(v,null,'Manual price')}});
+document.getElementById('fullBtn').addEventListener('click',()=>{viewMode='full';document.getElementById('fullBtn').classList.add('active');document.getElementById('nearBtn').classList.remove('active');drawChart()});
+document.getElementById('nearBtn').addEventListener('click',()=>{viewMode='near';document.getElementById('nearBtn').classList.add('active');document.getElementById('fullBtn').classList.remove('active');drawChart()});
+document.getElementById('scaleBtn').addEventListener('click',e=>{logScale=!logScale;e.target.classList.toggle('active',logScale);e.target.textContent=logScale?'Linear scale':'Log scale';drawChart()});
+window.addEventListener('resize',drawChart);
+buildTable();bindChartTooltip();loadLiveData();
+</script>
+</body>
+</html>
